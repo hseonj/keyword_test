@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>Keyword Cloud – Realtime Collaboration</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
+  <style>
+    @font-face {
+      font-family: 'SeoulNamsanB';
+      src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2107@1.1/SeoulNamsanB.woff') format('woff');
+    }
+
+    body {
+      font-family: 'SeoulNamsanB', sans-serif;
+      background: #ffffff;
+      margin: 0;
+      padding: 32px;
+      text-align: center;
+    }
+
+    #inputArea { margin-bottom: 24px; }
+
+    input {
+      padding: 12px 16px;
+      font-size: 16px;
+      width: 280px;
+    }
+
+    #cloud {
+      position: relative;
+      width: 500px;
+      height: 500px;
+      margin: 0 auto;
+      overflow: hidden;
+      border: 1px solid #eef3ff;
+    }
+
+    #resizeHandle {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      width: 16px;
+      height: 16px;
+      cursor: se-resize;
+      background: linear-gradient(135deg, transparent 50%, #9fc3ff 50%);
+      z-index: 5;
+    }
+
+    .keyword {
+      position: absolute;
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+      transition: left .4s ease, top .4s ease, color .25s ease, font-size .25s ease, opacity .3s ease;
+    }
+
+    .keyword.dragging {
+      transition: none;
+      z-index: 10;
+    }
+
+    #resetBtn {
+      position: fixed;
+      right: 24px;
+      bottom: 24px;
+      padding: 10px 16px;
+      font-size: 14px;
+      font-family: 'SeoulNamsanB', sans-serif;
+      background: #e6f0ff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    #contextMenu {
+      position: fixed;
+      display: none;
+      background: #fff;
+      border: 1px solid #d0d0d0;
+      border-radius: 6px;
+      box-shadow: 0 4px 12px rgba(0,0,0,.12);
+      z-index: 1000;
+    }
+
+    #contextMenu button {
+      width: 100%;
+      padding: 8px 14px;
+      background: none;
+      border: none;
+      text-align: left;
+      font-family: 'SeoulNamsanB', sans-serif;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="inputArea">
+    <input id="keywordInput" placeholder="키워드를 입력하고 Enter" />
+  </div>
+
+  <div id="cloud">
+    <div id="resizeHandle"></div>
+  </div>
+
+  <button id="resetBtn">Reset</button>
+
+  <div id="contextMenu">
+    <button id="deleteKeyword">삭제</button>
+    <button id="undoClick">클릭 취소</button>
+  </div>
+
+<script>
+'use strict';
+
+/********************
+ FIREBASE CONFIG
+********************/
+const firebaseConfig = {
+    apiKey: "AIzaSyDHZCjCjYRIkYng3FLdcmY5rRXuIC4wX-Q",
+    authDomain: "wordcloud-ad2-5-2.firebaseapp.com",
+    projectId: "wordcloud-ad2-5-2",
+    storageBucket: "wordcloud-ad2-5-2.firebasestorage.app",
+    messagingSenderId: "296755110666",
+    appId: "1:296755110666:web:7b9dcce0c63a210aa110f3"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const keywordRef = db.ref('keywords');
+
+/********************
+ ELEMENTS
+********************/
+const input = document.getElementById('keywordInput');
+const cloud = document.getElementById('cloud');
+const resizeHandle = document.getElementById('resizeHandle');
+const resetBtn = document.getElementById('resetBtn');
+const contextMenu = document.getElementById('contextMenu');
+const deleteBtn = document.getElementById('deleteKeyword');
+const undoBtn = document.getElementById('undoClick');
+
+const blueGrades = ['#cfe4ff', '#9fc3ff', '#6fa2ff', '#3f81ff', '#1f5ed6'];
+let contextTargetId = null;
+
+/********************
+ INPUT → DB
+********************/
+input.addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  const value = input.value.trim();
+  if (!value) return;
+
+  const keyId = value;
+  keywordRef.child(keyId).transaction(data => {
+    if (data) {
+      data.count += 1;
+      return data;
+    }
+    return { text: value, count: 0 };
+  });
+
+  input.value = '';
+});
+
+/********************
+ RESET (GLOBAL)
+********************/
+resetBtn.addEventListener('click', () => {
+  if (!confirm('모든 키워드를 초기화할까요?')) return;
+  keywordRef.remove();
+});
+
+/********************
+ CONTEXT MENU ACTIONS
+********************/
+deleteBtn.onclick = () => {
+  if (contextTargetId) keywordRef.child(contextTargetId).remove();
+  hideContext();
+};
+
+undoBtn.onclick = () => {
+  if (!contextTargetId) return;
+  keywordRef.child(contextTargetId).transaction(data => {
+    if (!data) return data;
+    data.count = Math.max(0, data.count - 1);
+    return data;
+  });
+  hideContext();
+};
+
+function hideContext() {
+  contextMenu.style.display = 'none';
+  contextTargetId = null;
+}
+
+/********************
+ DB → RENDER
+********************/
+keywordRef.on('value', snap => {
+  cloud.querySelectorAll('.keyword').forEach(el => el.remove());
+  const data = snap.val();
+  if (!data) return;
+
+  Object.keys(data).forEach(id => renderKeyword(id, data[id]));
+  layoutKeywords();
+});
+
+function renderKeyword(id, data) {
+  const el = document.createElement('div');
+  el.className = 'keyword';
+  el.textContent = data.text;
+  el.dataset.count = data.count;
+
+  const baseSize = 18;
+  el.style.fontSize = baseSize + data.count * 3 + 'px';
+  el.style.color = blueGrades[Math.min(blueGrades.length - 1, data.count)];
+
+  el.onclick = () => keywordRef.child(id).transaction(d => {
+    if (!d) return d;
+    d.count += 1;
+    return d;
+  });
+
+  el.oncontextmenu = e => {
+    e.preventDefault();
+    contextTargetId = id;
+    contextMenu.style.left = e.clientX + 'px';
+    contextMenu.style.top = e.clientY + 'px';
+    contextMenu.style.display = 'block';
+  };
+
+  cloud.appendChild(el);
+}
+
+/********************
+ LAYOUT (NO OVERLAP)
+********************/
+function layoutKeywords() {
+  const items = Array.from(cloud.querySelectorAll('.keyword'));
+  if (!items.length) return;
+
+  items.sort((a, b) => Number(b.dataset.count) - Number(a.dataset.count));
+
+  const cx = cloud.clientWidth / 2;
+  const cy = cloud.clientHeight / 2;
+  const maxRadius = Math.min(cx, cy) - 10;
+  const placed = [];
+  const padding = 14;
+
+  items.forEach((el, i) => {
+    const ew = el.offsetWidth;
+    const eh = el.offsetHeight;
+    let angle = 0;
+    let radius = i === 0 ? 0 : 24;
+
+    for (let t = 0; t < 4000; t++) {
+      const x = cx + Math.cos(angle) * radius - ew / 2;
+      const y = cy + Math.sin(angle) * radius - eh / 2;
+      const rect = { left: x, top: y, right: x + ew, bottom: y + eh };
+
+      if (!placed.some(p => overlap(rect, p, padding))) {
+        el.style.left = x + 'px';
+        el.style.top = y + 'px';
+        placed.push(rect);
+        break;
+      }
+      angle += 0.32;
+      radius += 1.8;
+      if (radius > maxRadius) break;
+    }
+  });
+}
+
+function overlap(a, b, p) {
+  return !(a.right + p < b.left || a.left > b.right + p || a.bottom + p < b.top || a.top > b.bottom + p);
+}
+
+/********************
+ BASIC TESTS
+********************/
+console.assert(firebase && keywordRef, 'Firebase connected');
+console.assert(typeof layoutKeywords === 'function', 'layoutKeywords exists');
+</script>
+</body>
+</html>
