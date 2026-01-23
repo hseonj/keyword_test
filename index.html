@@ -313,24 +313,26 @@ resizeHandle.addEventListener('mousedown', e => {
 function resizeMove(e) {
   if (!resizing) return;
 
-  const newW = Math.max(600, startW + (e.clientX - startX));
-  const newH = Math.max(600, startH + (e.clientY - startY));
+  const newW = Math.max(500, startW + (e.clientX - startX));
+  const newH = Math.max(500, startH + (e.clientY - startY));
 
   cloud.style.width = newW + 'px';
   cloud.style.height = newH + 'px';
-
-  layoutKeywords();
 }
 
 function resizeEnd() {
   resizing = false;
   document.removeEventListener('mousemove', resizeMove);
   document.removeEventListener('mouseup', resizeEnd);
+
+  // 🔥 리사이즈 끝난 후에만 재배치
+  layoutKeywords();
 }
   
 </script>
 </body>
 </html>
+
 
 
 
