@@ -51,6 +51,42 @@
       cursor: se-resize;
       background: linear-gradient(135deg, transparent 50%, #9fc3ff 50%);
       z-index: 5;
+      
+      let resizing = false;
+let startX, startY, startW, startH;
+
+resizeHandle.addEventListener('mousedown', e => {
+  e.preventDefault();
+  resizing = true;
+  startX = e.clientX;
+  startY = e.clientY;
+  startW = cloud.offsetWidth;
+  startH = cloud.offsetHeight;
+
+  document.addEventListener('mousemove', resizeMove);
+  document.addEventListener('mouseup', resizeEnd);
+});
+
+function resizeMove(e) {
+  if (!resizing) return;
+
+  const newW = Math.max(300, startW + (e.clientX - startX));
+  const newH = Math.max(300, startH + (e.clientY - startY));
+
+  cloud.style.width = newW + 'px';
+  cloud.style.height = newH + 'px';
+
+  // ⭐ 중요: 크기 바뀌면 레이아웃 다시
+  layoutKeywords();
+}
+
+function resizeEnd() {
+  resizing = false;
+  document.removeEventListener('mousemove', resizeMove);
+  document.removeEventListener('mouseup', resizeEnd);
+}
+
+
     }
 
     .keyword {
@@ -293,6 +329,7 @@ console.assert(typeof layoutKeywords === 'function', 'layoutKeywords exists');
 </script>
 </body>
 </html>
+
 
 
 
