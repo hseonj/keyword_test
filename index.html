@@ -301,6 +301,12 @@ resizeHandle.addEventListener('mousedown', e => {
   e.preventDefault();
   resizing = true;
 
+  const rect = cloud.getBoundingClientRect();
+  cloud.style.position = 'absolute';
+  cloud.style.left = rect.left + 'px';
+  cloud.style.top = rect.top + 'px';
+  cloud.style.margin = '0';
+
   startX = e.clientX;
   startY = e.clientY;
   startW = cloud.offsetWidth;
@@ -332,6 +338,7 @@ function resizeEnd() {
 </script>
 </body>
 </html>
+
 
 
 
