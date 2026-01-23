@@ -50,7 +50,8 @@
       background: linear-gradient(135deg, transparent 50%, #9fc3ff 50%);
       z-index: 5;
       
-      let resizing = false;
+    <script>
+let resizing = false;
 let startX, startY, startW, startH;
 
 resizeHandle.addEventListener('mousedown', e => {
@@ -74,7 +75,6 @@ function resizeMove(e) {
   cloud.style.width = newW + 'px';
   cloud.style.height = newH + 'px';
 
-  // ⭐ 중요: 크기 바뀌면 레이아웃 다시
   layoutKeywords();
 }
 
@@ -83,8 +83,8 @@ function resizeEnd() {
   document.removeEventListener('mousemove', resizeMove);
   document.removeEventListener('mouseup', resizeEnd);
 }
-
-
+</script>
+    
     }
 
     .keyword {
@@ -327,6 +327,7 @@ console.assert(typeof layoutKeywords === 'function', 'layoutKeywords exists');
 </script>
 </body>
 </html>
+
 
 
 
