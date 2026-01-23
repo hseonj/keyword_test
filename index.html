@@ -116,43 +116,6 @@
     <button id="undoClick">클릭 취소</button>
   </div>
   
-/********************
- RESIZE HANDLE
-********************/
-let resizing = false;
-let startX, startY, startW, startH;
-
-resizeHandle.addEventListener('mousedown', e => {
-  e.preventDefault();
-  resizing = true;
-
-  startX = e.clientX;
-  startY = e.clientY;
-  startW = cloud.offsetWidth;
-  startH = cloud.offsetHeight;
-
-  document.addEventListener('mousemove', resizeMove);
-  document.addEventListener('mouseup', resizeEnd);
-});
-
-function resizeMove(e) {
-  if (!resizing) return;
-
-  const newW = Math.max(600, startW + (e.clientX - startX));
-  const newH = Math.max(600, startH + (e.clientY - startY));
-
-  cloud.style.width = newW + 'px';
-  cloud.style.height = newH + 'px';
-
-  // 🔁 크기 바뀌면 키워드 다시 배치
-  layoutKeywords();
-}
-
-function resizeEnd() {
-  resizing = false;
-  document.removeEventListener('mousemove', resizeMove);
-  document.removeEventListener('mouseup', resizeEnd);
-}
 
   
 <script>
@@ -327,10 +290,52 @@ function overlap(a, b, p) {
 ********************/
 console.assert(firebase && keywordRef, 'Firebase connected');
 console.assert(typeof layoutKeywords === 'function', 'layoutKeywords exists');
+
+
+console.assert(firebase && keywordRef, 'Firebase connected');
+console.assert(typeof layoutKeywords === 'function', 'layoutKeywords exists');
+
+/********************
+ RESIZE HANDLE
+********************/
+let resizing = false;
+let startX, startY, startW, startH;
+
+resizeHandle.addEventListener('mousedown', e => {
+  e.preventDefault();
+  resizing = true;
+
+  startX = e.clientX;
+  startY = e.clientY;
+  startW = cloud.offsetWidth;
+  startH = cloud.offsetHeight;
+
+  document.addEventListener('mousemove', resizeMove);
+  document.addEventListener('mouseup', resizeEnd);
+});
+
+function resizeMove(e) {
+  if (!resizing) return;
+
+  const newW = Math.max(600, startW + (e.clientX - startX));
+  const newH = Math.max(600, startH + (e.clientY - startY));
+
+  cloud.style.width = newW + 'px';
+  cloud.style.height = newH + 'px';
+
+  layoutKeywords();
+}
+
+function resizeEnd() {
+  resizing = false;
+  document.removeEventListener('mousemove', resizeMove);
+  document.removeEventListener('mouseup', resizeEnd);
+}
   
 </script>
 </body>
 </html>
+
 
 
 
